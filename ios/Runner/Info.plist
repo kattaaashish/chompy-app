@@ -41,6 +41,25 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Food logging: photo capture, photo-library pick, and speech input. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Chompy uses the camera so you can take a photo of your plate.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chompy lets you pick a photo of your plate from your library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Chompy listens so you can say what you ate.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Chompy turns what you say into your food list.</string>
+	<!-- Dev only: allow cleartext HTTP to the local Supabase stack on the LAN
+	     (a private-network host). Remove before shipping / when using HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- iOS 14+ prompts before an app talks to local-network hosts. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Chompy connects to the local Chompy server on your network during development.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
