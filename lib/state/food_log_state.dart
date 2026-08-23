@@ -33,7 +33,34 @@ class FoodLogState extends ChangeNotifier {
 
   /// Injected from the onboarding session via a proxy provider.
   String? accessToken;
-  void updateToken(String? token) => accessToken = token;
+  void updateToken(String? token) {
+    final changed = token != null && token != accessToken;
+    accessToken = token;
+    if (changed) refreshToday();
+  }
+
+  bool _loadingDay = false;
+
+  /// Reload today's ledger from the backend — runs whenever a (new) session
+  /// arrives, covering cold-start restore and re-login. In-memory meals only
+  /// survive while the process lives; the backend is the source of truth.
+  Future<void> refreshToday() async {
+    final token = accessToken;
+    if (token == null || _loadingDay) return;
+    _loadingDay = true;
+    try {
+      final day = await _api.nutritionDay(token);
+      _mealsToday
+        ..clear()
+        ..addAll(day.meals);
+      notifyListeners();
+    } on ApiError {
+      // Non-fatal: Home just shows what's in memory; the next save/refresh
+      // retries. Network blips shouldn't kick the child out of Home.
+    } finally {
+      _loadingDay = false;
+    }
+  }
 
   FoodScreen _screen = FoodScreen.none;
   FoodScreen get screen => _screen;

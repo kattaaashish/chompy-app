@@ -18,6 +18,16 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
 
+# Chompy app icon — generated from the v0 design handoff (see its icon/README).
+# Regenerate after changing sources: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: /Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-1024.png
+  adaptive_icon_background: "/Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-1024.png"
+  adaptive_icon_foreground: "/Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-foreground-1024.png"
+  ios: true
+  android: true
+  remove_alpha_ios: true
+
 environment:
   sdk: ^3.10.7
 
@@ -46,6 +56,9 @@ dependencies:
   image_picker: ^1.1.2
   speech_to_text: ^7.0.0
 
+  # Session persistence across app restarts (access/refresh tokens).
+  flutter_secure_storage: ^9.2.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -56,6 +69,9 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # App icon generation from design handoff sources (flutter/ folder).
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

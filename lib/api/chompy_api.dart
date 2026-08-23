@@ -57,7 +57,19 @@ class ChompyApi {
 
   final http.Client _client;
 
+  static const String _fnBase = '/functions/v1';
+
   Uri _fn(String name) => Uri.parse('${ChompyConfig.backendBaseUrl}/$name');
+
+  /// Supabase Auth base (same project, outside Edge Functions), derived from
+  /// the functions base URL by stripping the `/functions/v1` suffix.
+  Uri _auth(String path) {
+    final base = ChompyConfig.backendBaseUrl;
+    final origin = base.endsWith(_fnBase)
+        ? base.substring(0, base.length - _fnBase.length)
+        : base;
+    return Uri.parse('$origin/auth/v1/$path');
+  }
 
   /// POST a JSON body. [bearer] overrides the anon key for authenticated calls.
   Future<Map<String, dynamic>> _post(
@@ -154,6 +166,42 @@ class ChompyApi {
         const {};
   }
 
+  /// Resume — ask the backend which stage the app should land on. Returns
+  /// `phone`, `profile`, or `home`. Throws on network/server errors.
+  Future<String> sessionState(String accessToken) async {
+    final json = await _post('session-state', {}, bearer: accessToken);
+    return json['stage'] as String;
+  }
+
+  /// Exchange a refresh token for a fresh session (access tokens expire after
+  /// ~1h). Throws [ApiError] with code `refresh_failed` when the grant is
+  /// rejected — the caller should treat the session as gone.
+  Future<Map<String, dynamic>> refreshSession(String refreshToken) async {
+    late http.Response res;
+    try {
+      res = await _client
+          .post(
+            _auth('token?grant_type=refresh_token'),
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': ChompyConfig.anonKey,
+            },
+            body: jsonEncode({'refresh_token': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      throw ApiError.network();
+    }
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200 || json['session'] == null) {
+      throw ApiError(
+        code: 'refresh_failed',
+        message: 'Session expired. Please sign in again.',
+      );
+    }
+    return json['session'] as Map<String, dynamic>;
+  }
+
   // ── Food logging ─────────────────────────────────────────────────────────
 
   /// Extract items from typed text (also used as the stand-in for speech).
@@ -203,6 +251,34 @@ class ChompyApi {
           .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
           .toList(),
       estimationFailed: (json['estimationFailed'] ?? false) as bool,
+    );
+  }
+
+  /// Today's IST day ledger: date + meals with their items. Powers Home after
+  /// a restart/re-login, when in-memory state is gone.
+  Future<DayLedger> nutritionDay(String accessToken) async {
+    final json = await _post('nutrition-day', {}, bearer: accessToken);
+    return DayLedger(
+      date: json['date'] as String,
+      meals: ((json['meals'] as List?) ?? const [])
+          .map((m) => LoggedMeal(
+                category: (m['category'] ?? '') as String,
+                items: ((m['items'] as List?) ?? const [])
+                    .map((i) => FoodItem(
+                          name: (i['name'] ?? '') as String,
+                          amount: ((i['quantity'] ?? const {})['amount'] ?? 0)
+                              as num,
+                          unit: ((i['quantity'] ?? const {})['unit'] ?? '')
+                              as String,
+                          calories: i['calories'] as num?,
+                          nutrients: ((i['nutrients'] as List?) ?? const [])
+                              .map((n) =>
+                                  Nutrient.fromJson(n as Map<String, dynamic>))
+                              .toList(),
+                        ))
+                    .toList(),
+              ))
+          .toList(),
     );
   }
 

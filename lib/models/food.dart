@@ -102,3 +102,12 @@ class LoggedMeal {
 
   String get summary => items.map((i) => i.name).join(', ');
 }
+
+/// A day's ledger as returned by `nutrition-day`.
+class DayLedger {
+  DayLedger({required this.date, required this.meals});
+
+  /// IST day key, 'YYYY-MM-DD'.
+  final String date;
+  final List<LoggedMeal> meals;
+}

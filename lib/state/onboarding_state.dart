@@ -8,12 +8,13 @@
 // only enables when the backend can't reject.
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/chompy_api.dart';
 import '../strings.dart';
 import '../theme.dart';
 
-enum Screen { welcome, phone, sending, otp, verifying, profile, home }
+enum Screen { restoring, welcome, phone, sending, otp, verifying, profile, home }
 
 /// The two OTP failure paths must never share a message (design + spec §3).
 enum OtpError { none, wrong, expired }
@@ -23,8 +24,123 @@ class OnboardingState extends ChangeNotifier {
 
   final ChompyApi _api;
 
-  Screen _screen = Screen.welcome;
+  Screen _screen = Screen.restoring;
   Screen get screen => _screen;
+
+  static const _storage = FlutterSecureStorage();
+  static const _kAccessToken = 'chompy_access_token';
+  static const _kRefreshToken = 'chompy_refresh_token';
+
+  /// Sign-in stays valid for this long of *inactivity*: any launch within the
+  /// window refreshes the session and slides it forward; past it, tokens are
+  /// dropped and the user signs in again. Supabase refresh tokens don't expire
+  /// on their own, so the inactivity window is enforced here.
+  static const sessionInactivityLimit = Duration(days: 30);
+  static const _kLastActiveAt = 'chompy_last_active_at';
+
+  /// Cold start — restore a previous session if we have one. Resolves to
+  /// `home`/`profile` when the stored token is still good (refreshing it first
+  /// if needed), otherwise to `welcome` for a fresh sign-in.
+  Future<void> restoreSession() async {
+    try {
+      await _restoreSession();
+    } catch (e) {
+      // Anything unrecoverable — missing secure storage (tests, unsupported
+      // platform), network down, rejected tokens with no refresh — falls back
+      // to a fresh sign-in rather than hanging on the splash.
+      assert(() {
+        debugPrint('restoreSession failed: $e');
+        return true;
+      }());
+      if (_screen == Screen.restoring) _go(Screen.welcome);
+    }
+  }
+
+  Future<void> _restoreSession() async {
+    var access = await _storage.read(key: _kAccessToken);
+    final refresh = await _storage.read(key: _kRefreshToken);
+    if (access == null) {
+      _go(Screen.welcome);
+      return;
+    }
+
+    // Inactivity window (product: keep kids signed in for up to 30 days).
+    final lastActiveMs = int.tryParse(
+        await _storage.read(key: _kLastActiveAt) ?? '');
+    if (lastActiveMs != null &&
+        DateTime.now().millisecondsSinceEpoch - lastActiveMs >
+            sessionInactivityLimit.inMilliseconds) {
+      await _clearSession();
+      _go(Screen.welcome);
+      return;
+    }
+
+    String stage;
+    try {
+      stage = await _api.sessionState(access);
+    } on ApiError catch (e) {
+      if (!e.retryable && e.code != 'server_error') {
+        // Token rejected (expired/invalid) — try the refresh grant once.
+        if (refresh == null) rethrow;
+        final session = await _api.refreshSession(refresh);
+        access = session['access_token'] as String;
+        await _persistSession(session);
+        stage = await _api.sessionState(access);
+      } else {
+        rethrow;
+      }
+    }
+    _accessToken = access;
+    // Every successful resume counts as activity and extends the window.
+    await _touchLastActive();
+    _go(stage == 'home'
+        ? Screen.home
+        : stage == 'profile'
+            ? Screen.profile
+            : Screen.welcome);
+  }
+
+  /// Keep tokens across restarts so app kill/reopen resumes instead of
+  /// forcing a fresh OTP round-trip.
+  Future<void> _persistSession(Map<String, dynamic> session) async {
+    try {
+      final access = session['access_token'] as String?;
+      final refresh = session['refresh_token'] as String?;
+      if (access != null) {
+        await _storage.write(key: _kAccessToken, value: access);
+      }
+      if (refresh != null) {
+        await _storage.write(key: _kRefreshToken, value: refresh);
+      }
+      await _touchLastActive();
+    } catch (e) {
+      // Persistence is best-effort: the in-memory token still works for this
+      // run; only kill/reopen would need a fresh sign-in.
+      assert(() {
+        debugPrint('session persist failed: $e');
+        return true;
+      }());
+    }
+  }
+
+  Future<void> _touchLastActive() async {
+    try {
+      await _storage.write(
+          key: _kLastActiveAt,
+          value: DateTime.now().millisecondsSinceEpoch.toString());
+    } catch (_) {
+      // Best-effort; worst case the window restarts from the last stored time.
+    }
+  }
+
+  Future<void> _clearSession() async {
+    try {
+      await _storage.delete(key: _kAccessToken);
+      await _storage.delete(key: _kRefreshToken);
+      await _storage.delete(key: _kLastActiveAt);
+    } catch (_) {}
+    _accessToken = null;
+  }
 
   void _go(Screen s) {
     _screen = s;
@@ -117,6 +233,7 @@ class OnboardingState extends ChangeNotifier {
       ]);
       final verify = results.first as VerifyResult;
       _accessToken = verify.accessToken;
+      await _persistSession(verify.session);
       _otpError = OtpError.none;
       // Returning user → home; new registration → profile.
       _go(verify.nextStage == 'home' ? Screen.home : Screen.profile);

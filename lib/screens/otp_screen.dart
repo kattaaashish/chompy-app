@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -62,7 +61,7 @@ class _OtpScreenState extends State<OtpScreen> {
               focus: _focus,
               onChanged: (v) => context.read<OnboardingState>().setOtp(v),
             ),
-            if (kDebugMode && state.debugOtpCode != null) ...[
+            if (state.debugOtpCode != null) ...[
               const SizedBox(height: ChompySpace.s3),
               _DebugCodeBanner(code: state.debugOtpCode!),
             ],
@@ -92,8 +91,9 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 }
 
-/// Debug builds only: shows the stubbed-SMS code and fills it on tap. Never
-/// present in a release build (guarded by kDebugMode at the call site).
+/// Shows the stubbed-SMS code and fills it on tap. Only rendered when the
+/// backend echoes a `debugCode` (OTP_DEBUG=true server-side) — in production
+/// the field is simply absent from the response, so this never appears.
 class _DebugCodeBanner extends StatelessWidget {
   const _DebugCodeBanner({required this.code});
 

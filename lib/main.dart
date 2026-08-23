@@ -29,9 +29,13 @@ class ChompyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final onboarding = OnboardingState();
+    // Resume a previous session (if any) before the first frame matters —
+    // until it resolves, _Root shows the neutral restoring screen.
+    onboarding.restoreSession();
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => OnboardingState()),
+        ChangeNotifierProvider.value(value: onboarding),
         // Food logging shares the onboarding session's access token.
         ChangeNotifierProxyProvider<OnboardingState, FoodLogState>(
           create: (_) => FoodLogState(),
@@ -65,6 +69,9 @@ class _Root extends StatelessWidget {
     if (onboarding != Screen.home) {
       key = onboarding;
       child = switch (onboarding) {
+        Screen.restoring => const SafeArea(
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
         Screen.welcome => const WelcomeScreen(),
         Screen.phone => const PhoneScreen(),
         Screen.sending => const SendingScreen(),
