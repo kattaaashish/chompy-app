@@ -7,17 +7,11 @@ import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/mascot.dart';
 
-/// Fun fact — the reward, and the only full-terracotta screen (design §22). One
-/// fact per item, never a number.
+/// Fun fact — the reward, and the only full-terracotta screen (design §22).
+/// One LLM-generated fact per logged meal (from the `meal-fact` function),
+/// never a number. Shows instantly with fallback copy while the fact loads.
 class FactScreen extends StatelessWidget {
   const FactScreen({super.key});
-
-  String _factFor(String name) {
-    for (final entry in ChompyStrings.facts.entries) {
-      if (entry.key.toLowerCase() == name.toLowerCase()) return entry.value;
-    }
-    return ChompyStrings.factFallback;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,15 +46,13 @@ class FactScreen extends StatelessWidget {
               ),
               const SizedBox(height: ChompySpace.s3),
               Text(
-                _factFor(item.name),
+                food.mealFact,
                 style: t.bodyLarge?.copyWith(color: ChompyColors.ground, height: 1.5),
               ),
               const Spacer(),
               OutlinedButton(
                 onPressed: () => context.read<FoodLogState>().nextFact(),
-                child: Text(food.hasMoreFacts
-                    ? ChompyStrings.factNext
-                    : ChompyStrings.factFinish),
+                child: Text(ChompyStrings.factFinish),
               ),
             ],
           ),

@@ -25,6 +25,7 @@ class FoodItem {
     required this.amount,
     required this.unit,
     this.calories,
+    this.foodGroup = 'other',
     this.nutrients = const [],
     this.estimationFailed = false,
   });
@@ -33,6 +34,13 @@ class FoodItem {
   final num amount;
   final String unit;
   final num? calories;
+
+  /// Food group the backend classified this item into (grains_cereals,
+  /// pulses_legumes, milk_dairy, vegetables, fruits, nuts_seeds, egg_meat_fish,
+  /// fats_oils, other). Rides along in the data model — not shown in the child UI
+  /// — and is sent back on save so it persists (dimension-2 assessment).
+  final String foodGroup;
+
   final List<Nutrient> nutrients;
   final bool estimationFailed;
 
@@ -47,6 +55,7 @@ class FoodItem {
       amount: (q['amount'] ?? 1) as num,
       unit: (q['unit'] ?? 'serving') as String,
       calories: j['calories'] as num?,
+      foodGroup: (j['food_group'] ?? 'other') as String,
       nutrients: ((j['nutrients'] as List?) ?? const [])
           .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
           .toList(),
@@ -59,6 +68,7 @@ class FoodItem {
     num? amount,
     String? unit,
     num? calories,
+    String? foodGroup,
     List<Nutrient>? nutrients,
     bool? estimationFailed,
   }) =>
@@ -67,6 +77,7 @@ class FoodItem {
         amount: amount ?? this.amount,
         unit: unit ?? this.unit,
         calories: calories ?? this.calories,
+        foodGroup: foodGroup ?? this.foodGroup,
         nutrients: nutrients ?? this.nutrients,
         estimationFailed: estimationFailed ?? this.estimationFailed,
       );
@@ -76,6 +87,7 @@ class FoodItem {
         'name': name,
         'quantity': {'amount': amount, 'unit': unit},
         'calories': calories,
+        'food_group': foodGroup,
         'nutrients': nutrients.map((n) => n.toJson()).toList(),
       };
 }

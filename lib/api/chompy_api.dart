@@ -198,11 +198,28 @@ class ChompyApi {
       amount: amount,
       unit: unit,
       calories: json['calories'] as num?,
+      foodGroup: (json['food_group'] ?? 'other') as String,
       nutrients: ((json['nutrients'] as List?) ?? const [])
           .map((n) => Nutrient.fromJson(n as Map<String, dynamic>))
           .toList(),
       estimationFailed: (json['estimationFailed'] ?? false) as bool,
     );
+  }
+
+  /// One kid-friendly fun fact for the logged meal's items. The backend never
+  /// fails this — any LLM trouble comes back as a generic fact.
+  Future<String> mealFact(
+    String accessToken, {
+    required List<FoodItem> items,
+  }) async {
+    final json = await _post(
+      'meal-fact',
+      {
+        'items': items.map((i) => '${i.name} ${i.amount} ${i.unit}'.trim()).toList(),
+      },
+      bearer: accessToken,
+    );
+    return (json['fact'] ?? '') as String;
   }
 
   /// Confirm & save the meal. [clientToken] makes a retried save idempotent.

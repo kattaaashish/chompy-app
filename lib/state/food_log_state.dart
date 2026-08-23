@@ -2,12 +2,14 @@
 // truth; when it's `none`, Home shows. Nothing is saved until confirm (spec §3):
 // add / remove / edit all happen on the in-memory item list first.
 
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
 import '../api/chompy_api.dart';
 import '../models/food.dart';
+import '../strings.dart';
 import '../theme.dart';
 
 enum FoodScreen {
@@ -65,6 +67,27 @@ class FoodLogState extends ChangeNotifier {
   int get factIndex => _factIndex;
   FoodItem? get currentFactItem =>
       _items.isEmpty ? null : _items[_factIndex.clamp(0, _items.length - 1)];
+
+  // One LLM-generated fact per logged meal (meal-fact function). Falls back to
+  // the generic copy if the fetch failed — the reward screen never blocks.
+  String _mealFact = '';
+  String get mealFact =>
+      _mealFact.isEmpty ? ChompyStrings.factFallback : _mealFact;
+
+  /// Fetch the fact for the just-saved meal. Best-effort: on any failure the
+  /// generic fallback stays in place.
+  Future<void> _loadFact() async {
+    _mealFact = '';
+    final token = accessToken;
+    if (token == null || _items.isEmpty) return;
+    try {
+      final fact = await _api.mealFact(token, items: _items);
+      if (fact.isNotEmpty) _mealFact = fact;
+    } on ApiError {
+      // Keep the fallback copy.
+    }
+    notifyListeners();
+  }
 
   String _clientToken = '';
 
@@ -230,6 +253,7 @@ class FoodLogState extends ChangeNotifier {
       _mealsToday.add(LoggedMeal(category: _category, items: _items));
       _factIndex = 0;
       _go(FoodScreen.fact);
+      unawaited(_loadFact()); // reward screen shows fallback until this lands
     } on ApiError catch (e) {
       _errorMessage = e.message;
       _go(FoodScreen.failed);
@@ -242,15 +266,11 @@ class FoodLogState extends ChangeNotifier {
   void backToReview() => _go(FoodScreen.review);
 
   void nextFact() {
-    if (_factIndex < _items.length - 1) {
-      _factIndex++;
-      notifyListeners();
-    } else {
-      _go(FoodScreen.saved);
-    }
+    // One fact per meal now (LLM-generated) — the button always finishes.
+    _go(FoodScreen.saved);
   }
 
-  bool get hasMoreFacts => _factIndex < _items.length - 1;
+  bool get hasMoreFacts => false;
 
   static String _newToken() {
     final r = Random();
