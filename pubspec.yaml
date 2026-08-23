@@ -21,9 +21,9 @@ version: 1.0.0+1
 # Chompy app icon — generated from the v0 design handoff (see its icon/README).
 # Regenerate after changing sources: dart run flutter_launcher_icons
 flutter_launcher_icons:
-  image_path: /Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-1024.png
-  adaptive_icon_background: "/Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-1024.png"
-  adaptive_icon_foreground: "/Users/aashishkatta/Downloads/design_handoff_chompy_v0/icon/flutter/icon-foreground-1024.png"
+  image_path: assets/icon/icon-1024.png
+  adaptive_icon_background: "assets/icon/icon-1024.png"
+  adaptive_icon_foreground: "assets/icon/icon-foreground-1024.png"
   ios: true
   android: true
   remove_alpha_ios: true
